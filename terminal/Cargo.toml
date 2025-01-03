@@ -1,0 +1,13 @@
+[package]
+name = "terminal"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+embedded-graphics = "0.8.1"
+embedded-graphics-simulator = "0.7.0"
+heapless = "0.8.0"
+num_enum = { version = "0.7.3", default-features = false }
+
+[dev-dependencies]
+tokio = { version = "1.42.0", features = ["full"] }

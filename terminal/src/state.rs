@@ -195,6 +195,10 @@ impl State<'_> {
     pub fn reset_position(&mut self) {
         self.position = Point::new(0, 14);
     }
+
+    pub fn backspace(&mut self) {
+        self.position = Point::new(self.position.x - 9, self.position.y);
+    }
 }
 
 impl Default for State<'_> {

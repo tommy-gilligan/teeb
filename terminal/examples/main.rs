@@ -12,6 +12,7 @@ use std::{
 use terminal::Terminal;
 use terminal::c1::Parser;
 use terminal::csi::Parser as CsiParser;
+use terminal::osc::Parser as OscParser;
 
 #[tokio::main]
 async fn main() -> Result<(), core::convert::Infallible> {
@@ -33,7 +34,7 @@ async fn main() -> Result<(), core::convert::Infallible> {
     terminal.clear(&mut display);
 
     terminal.push(
-        terminal::csi::Character::ControlSequenceIntroducer(
+        terminal::Character::ControlSequenceIntroducer(
             terminal::csi::ControlSequenceIntroducer::SelectGraphicRendition(
                 terminal::csi::select_graphic_rendition::SelectGraphicRendition::SetForegroundColor4
             )
@@ -60,10 +61,12 @@ async fn main() -> Result<(), core::convert::Infallible> {
         window.update(&display);
 
         let mut c1_parser_buffer: Vec<u8> = Vec::new();
-        let mut csi_parser_buffer: Vec<terminal::c1::Character> = Vec::new();
+        let mut csi_parser_buffer: Vec<terminal::Character> = Vec::new();
+        let mut osc_parser_buffer: Vec<terminal::Character> = Vec::new();
 
         let mut err_c1_parser_buffer: Vec<u8> = Vec::new();
-        let mut err_csi_parser_buffer: Vec<terminal::c1::Character> = Vec::new();
+        let mut err_csi_parser_buffer: Vec<terminal::Character> = Vec::new();
+        let mut err_osc_parser_buffer: Vec<terminal::Character> = Vec::new();
 
         'readerr: loop {
             match stderr_reader.try_recv() {
@@ -74,8 +77,13 @@ async fn main() -> Result<(), core::convert::Infallible> {
                         csi_parser_buffer.push(c);
                         let mut csi_parser = CsiParser::new(&csi_parser_buffer);
                         if let Some(d) = csi_parser.next() {
-                            println!("{:?}", &d);
-                            terminal.push(d);
+                            osc_parser_buffer.push(d);
+                            let mut osc_parser = OscParser::new(&osc_parser_buffer);
+                            if let Some(e) = osc_parser.next() {
+                                println!("{:?}", &e);
+                                terminal.push(e);
+                                osc_parser_buffer.clear();
+                            }
                             csi_parser_buffer.clear();
                         }
                         c1_parser_buffer.clear();
@@ -98,8 +106,13 @@ async fn main() -> Result<(), core::convert::Infallible> {
                         err_csi_parser_buffer.push(c);
                         let mut csi_parser = CsiParser::new(&err_csi_parser_buffer);
                         if let Some(d) = csi_parser.next() {
-                            println!("{:?}", &d);
-                            terminal.push(d);
+                            err_osc_parser_buffer.push(d);
+                            let mut err_osc_parser = OscParser::new(&err_osc_parser_buffer);
+                            if let Some(e) = err_osc_parser.next() {
+                                println!("{:?}", &e);
+                                terminal.push(e);
+                                err_osc_parser_buffer.clear();
+                            }
                             err_csi_parser_buffer.clear();
                         }
                         err_c1_parser_buffer.clear();
@@ -118,7 +131,7 @@ async fn main() -> Result<(), core::convert::Infallible> {
 
         for event in window.events() {
             match event {
-                SimulatorEvent::Quit => break 'running,
+                SimulatorEvent::Quit => { nix::sys::signal::raise(nix::sys::signal::Signal::SIGKILL); },
                 SimulatorEvent::KeyDown { keycode, keymod, .. } => {
                    let b = (keycode.into_i32() & 0xff) as u8;
                    let k = match (b, keymod) {

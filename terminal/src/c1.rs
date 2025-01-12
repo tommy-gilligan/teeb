@@ -1,5 +1,6 @@
 use core::{ascii::Char, slice::Iter};
 use num_enum::TryFromPrimitive;
+use crate::Character;
 
 pub struct Parser<'a> {
     bytes: Iter<'a, u8>,
@@ -13,13 +14,6 @@ impl<'a> Parser<'a> {
             escaping: false,
         }
     }
-}
-
-#[derive(Debug, Eq, PartialEq, Copy, Clone)]
-pub enum Character {
-    Char(Char),
-    C1Escape(C1Escape),
-    Unrecognized(u8),
 }
 
 #[derive(Debug, Eq, PartialEq, TryFromPrimitive, Copy, Clone)]
@@ -53,6 +47,8 @@ impl Iterator for Parser<'_> {
                         } else {
                             return Some(Character::Unrecognized(byte));
                         }
+                    } else if (*byte) == 0x07 {
+                            return Some(Character::C1Escape(C1Escape::StringTerminator));
                     } else {
                         return Some(Character::Unrecognized(*byte));
                     }
